@@ -1,8 +1,9 @@
 import { Component, computed, inject } from '@angular/core';
 import { Button } from 'primeng/button';
 import { Tag } from 'primeng/tag';
-import { HERO_LABELS, LEVEL_LABELS, PHASE_LABELS, SYMBOL_GLOSSARY } from '../../core/constants/game.constants';
+import { PHASE_LABELS, SYMBOL_GLOSSARY } from '../../core/constants/game.constants';
 import { GameConnectionService } from '../../core/services/game-connection.service';
+import { schemaToArray } from '../../core/utils/schema.utils';
 
 @Component({
   selector: 'app-wheels-panel',
@@ -14,6 +15,7 @@ export class WheelsPanelComponent {
   readonly conn = inject(GameConnectionService);
 
   readonly player = computed(() => this.conn.myPlayer());
+  readonly wheels = computed(() => schemaToArray(this.player()?.turn?.wheels));
   readonly phaseLabel = computed(() => {
     const phase = this.player()?.turn?.phase;
     return phase ? (PHASE_LABELS[phase] ?? phase) : '—';

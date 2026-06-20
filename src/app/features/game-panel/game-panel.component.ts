@@ -19,8 +19,9 @@ const AUTO_MODE_KEY = 'casino-battle-auto-mode';
 export class GamePanelComponent implements OnDestroy {
   readonly conn = inject(GameConnectionService);
 
-  autoMode = signal(sessionStorage.getItem(AUTO_MODE_KEY) === 'true');
+  autoMode = signal(false);
   private autoTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastAutoKey = '';
 
   readonly gameOverVisible = () => this.conn.gameOver() !== null;
   readonly gameOver = () => this.conn.gameOver();
@@ -28,16 +29,22 @@ export class GamePanelComponent implements OnDestroy {
   private autoEffect = effect(() => {
     if (!this.autoMode() || !this.conn.inGame()) return;
 
+    const revision = this.conn.stateRevision();
     const player = this.conn.myPlayer();
     const phase = player?.turn?.phase;
     const confirmed = player?.turn?.confirmed;
 
     untracked(() => {
-      if (phase && !confirmed) {
+      if (revision >= 0 && phase && !confirmed) {
         this.queueAutoTurn();
       }
     });
   });
+
+  constructor() {
+    const stored = sessionStorage.getItem(AUTO_MODE_KEY) === 'true';
+    this.autoMode.set(stored);
+  }
 
   ngOnDestroy() {
     this.clearAutoTimer();
@@ -45,6 +52,7 @@ export class GamePanelComponent implements OnDestroy {
 
   onAutoModeChange(enabled: boolean) {
     this.autoMode.set(enabled);
+    this.lastAutoKey = '';
     sessionStorage.setItem(AUTO_MODE_KEY, String(enabled));
     this.conn.appendLog(
       enabled ? '[IA] Modo automático activado' : '[IA] Modo automático desactivado',
@@ -62,7 +70,7 @@ export class GamePanelComponent implements OnDestroy {
     this.clearAutoTimer();
     if (!this.autoMode() || !this.conn.inGame()) return;
 
-    this.autoTimer = setTimeout(() => this.runAutoTurn(), 250);
+    this.autoTimer = setTimeout(() => this.runAutoTurn(), 400);
   }
 
   private clearAutoTimer() {
@@ -78,13 +86,20 @@ export class GamePanelComponent implements OnDestroy {
     const player = this.conn.myPlayer();
     if (!player?.turn || player.turn.confirmed) return;
 
-    if (player.turn.phase === 'spinning') {
+    const { phase } = player.turn;
+    const autoKey = `${phase}:${player.turn.spinsRemaining}:${player.turn.confirmed}`;
+
+    if (this.lastAutoKey === autoKey) return;
+
+    if (phase === 'spinning') {
+      this.lastAutoKey = autoKey;
       this.conn.skipSpins();
       this.conn.appendLog('[IA] Giros saltados automáticamente', 'event');
       return;
     }
 
-    if (player.turn.phase === 'confirming') {
+    if (phase === 'confirming') {
+      this.lastAutoKey = autoKey;
       this.conn.confirmTurn();
       this.conn.appendLog('[IA] Turno confirmado automáticamente', 'event');
     }
@@ -98,7 +113,8 @@ export class GamePanelComponent implements OnDestroy {
     return LEVEL_LABELS[level] ?? `Nivel ${level}`;
   }
 
-  onGameAction() {
+  onTurnResolved() {
+    this.lastAutoKey = '';
     this.queueAutoTurn();
   }
 

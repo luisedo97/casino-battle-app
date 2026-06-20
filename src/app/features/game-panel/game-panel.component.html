@@ -53,9 +53,9 @@
     <h2><i class="fa-solid fa-circle-notch"></i> Tus ruedas</h2>
     <app-wheels-panel />
     <div class="actions">
-      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin(); onGameAction()" />
-      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins(); onGameAction()" />
-      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onGameAction()" />
+      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin()" [disabled]="!conn.myPlayer()" />
+      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins()" [disabled]="!conn.myPlayer()" />
+      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onTurnResolved()" [disabled]="!conn.myPlayer()" />
     </div>
   </section>
 

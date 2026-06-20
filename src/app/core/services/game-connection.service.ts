@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, NgZone, computed, inject, signal } from '@angular/core';
 import { Client, Room } from 'colyseus.js';
 import { environment } from '../../../environments/environment';
 import { HeroType } from '../constants/game.constants';
@@ -12,43 +12,72 @@ import {
 } from '../models/game.models';
 import { ApiService } from './api.service';
 
+type RoomKind = 'lobby' | 'game';
+
 @Injectable({ providedIn: 'root' })
 export class GameConnectionService {
   private api = inject(ApiService);
+  private ngZone = inject(NgZone);
   private client = new Client(environment.wsUrl);
   private room: Room | null = null;
 
+  /** Incrementa en cada patch de estado Colyseus para refrescar computed/templates. */
+  readonly stateRevision = signal(0);
+
   readonly roomId = signal<string | null>(null);
-  readonly roomName = signal<string | null>(null);
+  readonly roomName = signal<RoomKind | null>(null);
   readonly sessionId = signal<string | null>(null);
   readonly myPlayerId = signal<string | null>(null);
   readonly connected = computed(() => this.roomId() !== null);
   readonly inGame = computed(() => this.roomName() === 'game');
   readonly inLobby = computed(() => this.roomName() === 'lobby');
 
-  readonly lobbyState = signal<LobbyState | null>(null);
-  readonly gameState = signal<GameRoomState | null>(null);
   readonly logs = signal<LogEntry[]>([]);
   readonly gameOver = signal<GameOverPayload | null>(null);
   readonly lastReport = signal<TurnResolutionReport | null>(null);
 
+  readonly gameState = computed(() => {
+    this.stateRevision();
+    if (!this.room || this.roomName() !== 'game') return null;
+    return this.room.state as GameRoomState;
+  });
+
+  readonly lobbyState = computed(() => {
+    this.stateRevision();
+    if (!this.room || this.roomName() !== 'lobby') return null;
+    return this.room.state as LobbyState;
+  });
+
   readonly myPlayer = computed(() => {
+    this.stateRevision();
     const playerId = this.myPlayerId();
-    if (!playerId) return null;
+    if (!playerId || !this.room) return null;
 
-    if (this.inGame()) {
-      return this.getPlayerFromMap(this.gameState()?.players, playerId);
-    }
+    const players = this.inGame()
+      ? (this.room.state as GameRoomState).players
+      : (this.room.state as LobbyState).players;
 
-    return this.getPlayerFromMap(this.lobbyState()?.players, playerId);
+    return this.getPlayerFromMap(players, playerId);
   });
 
   readonly players = computed(() => {
+    this.stateRevision();
+    if (!this.room) return [];
+
     const map = this.inGame()
-      ? this.gameState()?.players
-      : this.lobbyState()?.players;
+      ? (this.room.state as GameRoomState).players
+      : (this.room.state as LobbyState).players;
+
     return this.playersFromMap(map);
   });
+
+  private bumpState() {
+    this.stateRevision.update((v) => v + 1);
+  }
+
+  private runInAngular(fn: () => void) {
+    this.ngZone.run(fn);
+  }
 
   getPlayerFromMap(
     map: Map<string, PlayerState> | Record<string, PlayerState> | undefined,
@@ -88,11 +117,7 @@ export class GameConnectionService {
   private pushLog(message: string, type: LogEntry['type'] = 'event') {
     this.logs.update((entries) => [
       ...entries,
-      {
-        time: new Date().toLocaleTimeString(),
-        message,
-        type,
-      },
+      { time: new Date().toLocaleTimeString(), message, type },
     ]);
   }
 
@@ -102,11 +127,7 @@ export class GameConnectionService {
     for (const entry of report.entries) {
       const prefix = entry.playerName ? `[${entry.playerName}] ` : '';
       const type =
-        entry.phase === 'combat'
-          ? 'combat'
-          : entry.phase === 'wheels'
-            ? 'wheels'
-            : 'summary';
+        entry.phase === 'combat' ? 'combat' : entry.phase === 'wheels' ? 'wheels' : 'summary';
       this.pushLog(`${prefix}${entry.message}`, type);
     }
   }
@@ -120,97 +141,108 @@ export class GameConnectionService {
   async joinLobby(roomId: string, playerName?: string): Promise<void> {
     await this.leave(false);
     const room = await this.client.joinById(roomId, playerName ? { name: playerName } : {});
-    this.attachRoom(room, 'lobby');
+    this.setupRoom(room, 'lobby');
     this.myPlayerId.set(room.sessionId);
     this.pushLog(`Unido al lobby (${room.roomId})`, 'ok');
   }
 
-  async joinById(roomId: string): Promise<void> {
-    await this.leave(false);
-    const room = await this.client.joinById(roomId);
-    this.attachRoom(room, room.name as 'lobby' | 'game');
-    this.myPlayerId.set(room.name === 'lobby' ? room.sessionId : null);
-    this.pushLog(`Unido a sala ${room.name} (${room.roomId})`, 'ok');
-  }
-
-  private attachRoom(room: Room, expectedName: 'lobby' | 'game') {
+  private setupRoom(room: Room, kind: RoomKind) {
     this.room = room;
     this.roomId.set(room.roomId);
-    this.roomName.set(expectedName);
+    this.roomName.set(kind);
     this.sessionId.set(room.sessionId);
     this.gameOver.set(null);
+    this.bumpState();
 
-    room.onStateChange((state) => {
-      if (expectedName === 'lobby') {
-        this.lobbyState.set(state as LobbyState);
-      } else {
-        this.gameState.set(state as GameRoomState);
-      }
+    room.onStateChange(() => {
+      this.runInAngular(() => this.bumpState());
     });
 
-    if (expectedName === 'lobby') {
-      this.lobbyState.set(room.state as LobbyState);
+    if (kind === 'lobby') {
       this.bindLobbyHandlers(room);
     } else {
-      this.gameState.set(room.state as GameRoomState);
       this.bindGameHandlers(room);
     }
   }
 
   private bindLobbyHandlers(room: Room) {
-    room.onMessage('chat-room', (msg: string) => this.pushLog(`chat: ${msg}`, 'chat'));
-    room.onMessage('selection-error', (msg: string) => this.pushLog(`selection-error: ${msg}`, 'err'));
+    room.onMessage('chat-room', (msg: string) =>
+      this.runInAngular(() => this.pushLog(`chat: ${msg}`, 'chat'))
+    );
+    room.onMessage('selection-error', (msg: string) =>
+      this.runInAngular(() => this.pushLog(`selection-error: ${msg}`, 'err'))
+    );
 
     room.onMessage('transfer-room', async (payload: string | { roomId: string; message?: string }) => {
       const gameRoomId = typeof payload === 'string' ? payload : payload.roomId;
       const message = typeof payload === 'string' ? '' : (payload.message ?? '');
-      this.pushLog(`transfer-room → game ${gameRoomId}${message ? ` (${message})` : ''}`, 'event');
+      const lobbyPlayerId = this.myPlayerId();
+
+      this.runInAngular(() =>
+        this.pushLog(`transfer-room → game ${gameRoomId}${message ? ` (${message})` : ''}`, 'event')
+      );
+
       await this.leave(false);
+
       const gameRoom = await this.client.joinById(gameRoomId);
-      this.attachRoom(gameRoom, 'game');
-      this.myPlayerId.set(null);
-      this.pushLog(`Conectado a partida (${gameRoom.roomId})`, 'ok');
+      this.runInAngular(() => {
+        this.setupRoom(gameRoom, 'game');
+        // El id de jugador en game es el sessionId del lobby, no el de la nueva conexión.
+        if (lobbyPlayerId) {
+          this.myPlayerId.set(lobbyPlayerId);
+          this.pushLog(`Jugador restaurado: ${lobbyPlayerId}`, 'ok');
+        }
+        this.pushLog(`Conectado a partida (${gameRoom.roomId})`, 'ok');
+      });
     });
   }
 
   private bindGameHandlers(room: Room) {
     const assignPlayer = (payload: { playerId: string }) => {
-      this.myPlayerId.set(payload.playerId);
-      this.pushLog(`Asignado a jugador: ${payload.playerId}`, 'ok');
+      this.runInAngular(() => {
+        this.myPlayerId.set(payload.playerId);
+        this.pushLog(`Asignado a jugador: ${payload.playerId}`, 'ok');
+      });
     };
 
-    room.onMessage('chat-room', (msg: string) => this.pushLog(`chat: ${msg}`, 'chat'));
+    room.onMessage('chat-room', (msg: string) =>
+      this.runInAngular(() => this.pushLog(`chat: ${msg}`, 'chat'))
+    );
     room.onMessage('reconnected', assignPlayer);
     room.onMessage('player-assigned', assignPlayer);
     room.onMessage('game-info', (payload: { message: string }) =>
-      this.pushLog(`game-info: ${payload.message}`, 'event')
+      this.runInAngular(() => this.pushLog(`game-info: ${payload.message}`, 'event'))
     );
-    room.onMessage('start-game', () => this.pushLog('La partida comenzó', 'ok'));
+    room.onMessage('start-game', () =>
+      this.runInAngular(() => this.pushLog('La partida comenzó', 'ok'))
+    );
     room.onMessage('turn-started', (payload: { message: string }) =>
-      this.pushLog(`turn-started: ${payload.message}`, 'event')
+      this.runInAngular(() => this.pushLog(`turn-started: ${payload.message}`, 'event'))
     );
     room.onMessage('turn-updated', (payload: { action: string; phase: string }) =>
-      this.pushLog(`turn-updated: ${payload.action} → ${payload.phase}`, 'event')
+      this.runInAngular(() => this.pushLog(`turn-updated: ${payload.action} → ${payload.phase}`, 'event'))
     );
     room.onMessage('turn-error', (payload: { error: string }) =>
-      this.pushLog(`turn-error: ${payload.error}`, 'err')
+      this.runInAngular(() => this.pushLog(`turn-error: ${payload.error}`, 'err'))
     );
     room.onMessage('turn-resolved', (payload: { message: string; report?: TurnResolutionReport }) => {
-      this.pushLog(`turn-resolved: ${payload.message}`, 'event');
-      this.lastReport.set(payload.report ?? null);
-      this.logReport(payload.report);
+      this.runInAngular(() => {
+        this.pushLog(`turn-resolved: ${payload.message}`, 'event');
+        this.lastReport.set(payload.report ?? null);
+        this.logReport(payload.report);
+      });
     });
     room.onMessage('game-over', (payload: GameOverPayload) => {
-      const summary = payload.isDraw
-        ? 'Empate'
-        : `Ganador ${payload.winnerId}`;
-      this.pushLog(`game-over: ${summary} — ${payload.message}`, 'ok');
-      this.lastReport.set(payload.report ?? null);
-      this.logReport(payload.report);
-      this.gameOver.set(payload);
+      this.runInAngular(() => {
+        const summary = payload.isDraw ? 'Empate' : `Ganador ${payload.winnerId}`;
+        this.pushLog(`game-over: ${summary} — ${payload.message}`, 'ok');
+        this.lastReport.set(payload.report ?? null);
+        this.logReport(payload.report);
+        this.gameOver.set(payload);
+      });
     });
     room.onMessage('room-error', (payload: { error: string }) =>
-      this.pushLog(`room-error: ${payload.error}`, 'err')
+      this.runInAngular(() => this.pushLog(`room-error: ${payload.error}`, 'err'))
     );
   }
 
@@ -253,19 +285,23 @@ export class GameConnectionService {
     if (!this.room) return;
 
     const id = this.room.roomId;
-    await this.room.leave();
+    const room = this.room;
     this.room = null;
-    this.roomId.set(null);
-    this.roomName.set(null);
-    this.sessionId.set(null);
-    this.myPlayerId.set(null);
-    this.lobbyState.set(null);
-    this.gameState.set(null);
-    this.gameOver.set(null);
 
-    if (logLeave) {
-      this.pushLog(`Saliste de la sala ${id}`, 'event');
-    }
+    await room.leave();
+
+    this.runInAngular(() => {
+      this.roomId.set(null);
+      this.roomName.set(null);
+      this.sessionId.set(null);
+      this.myPlayerId.set(null);
+      this.gameOver.set(null);
+      this.bumpState();
+
+      if (logLeave) {
+        this.pushLog(`Saliste de la sala ${id}`, 'event');
+      }
+    });
   }
 
   clearLogs() {
