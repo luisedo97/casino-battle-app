@@ -1,0 +1,40 @@
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+
+  h2 {
+    margin: 0;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+}
+
+.log-body {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.log-line {
+  padding: 0.15rem 0;
+  word-break: break-word;
+}
+
+.time {
+  opacity: 0.7;
+}
+
+.log-event { color: #d29922; }
+.log-ok { color: #3fb950; }
+.log-err { color: #f85149; }
+.log-chat { color: #79c0ff; }
+.log-wheels { color: #d2a8ff; }
+.log-combat { color: #ffa657; }
+.log-summary { color: #8b949e; }
+
+.muted {
+  color: var(--text-muted);
+}

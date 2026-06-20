@@ -1,0 +1,31 @@
+<header class="app-header">
+  <h1><i class="fa-solid fa-dice"></i> Casino Battle</h1>
+  <p>Cliente Angular — conecta al servidor Colyseus en <code>localhost:2567</code></p>
+</header>
+
+<main class="layout">
+  <aside class="sidebar">
+    <app-lobby-panel />
+
+    <section class="panel glossary">
+      <h2><i class="fa-solid fa-book"></i> Glosario</h2>
+      <ul>
+        @for (entry of symbols; track entry[0]) {
+          <li>
+            <i [class]="entry[1].icon" [style.color]="entry[1].color"></i>
+            <div>
+              <strong>{{ entry[1].label }}</strong>
+              <small><code>{{ entry[0] }}</code></small>
+              <p>{{ entry[1].effect }}</p>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  </aside>
+
+  <section class="main">
+    <app-game-panel />
+    <app-game-log />
+  </section>
+</main>

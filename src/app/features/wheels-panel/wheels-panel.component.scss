@@ -1,0 +1,52 @@
+.meta {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0.65rem;
+}
+
+.wheel-card {
+  background: var(--surface-ground);
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  padding: 0.65rem;
+  text-align: center;
+
+  &.locked {
+    border-color: var(--warn);
+    box-shadow: inset 0 0 0 1px rgba(210, 153, 34, 0.25);
+  }
+}
+
+.wheel-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.wheel-symbol {
+  font-size: 1.75rem;
+  margin: 0.35rem 0;
+}
+
+.wheel-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+code {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.muted {
+  color: var(--text-muted);
+}

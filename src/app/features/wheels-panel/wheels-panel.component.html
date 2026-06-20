@@ -1,0 +1,29 @@
+@if (player()?.turn?.wheels?.length) {
+  <div class="meta">
+    <p-tag [value]="'Fase: ' + phaseLabel()" severity="info" />
+    <p-tag [value]="'Giros: ' + player()!.turn!.spinsRemaining" />
+  </div>
+
+  <div class="grid">
+    @for (wheel of player()!.turn!.wheels; track $index) {
+      @let meta = symbolMeta(wheel.symbol);
+      <article class="wheel-card" [class.locked]="wheel.locked">
+        <div class="wheel-title">Rueda {{ $index + 1 }}</div>
+        <div class="wheel-symbol" [style.color]="meta.color">
+          <i [class]="meta.icon"></i>
+        </div>
+        <div class="wheel-label">{{ meta.label }}</div>
+        <code>{{ wheel.symbol }}</code>
+        <p-button
+          [label]="wheel.locked ? 'Desbloquear' : 'Bloquear'"
+          [icon]="wheel.locked ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'"
+          size="small"
+          [severity]="wheel.locked ? 'warn' : 'secondary'"
+          (onClick)="toggleLock($index, wheel.locked)"
+        />
+      </article>
+    }
+  </div>
+} @else {
+  <p class="muted">Esperando turno activo…</p>
+}

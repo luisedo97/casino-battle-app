@@ -1,0 +1,10 @@
+{
+  "/create-room": {
+    "target": "http://localhost:2567",
+    "secure": false
+  },
+  "/get-rooms": {
+    "target": "http://localhost:2567",
+    "secure": false
+  }
+}

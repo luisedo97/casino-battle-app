@@ -1,0 +1,78 @@
+<section class="panel">
+  <h2><i class="fa-solid fa-plug"></i> Conexión</h2>
+
+  @if (conn.connected()) {
+    <p class="status ok">
+      Conectado a <strong>{{ conn.roomName() }}</strong><br />
+      Room: <code>{{ conn.roomId() }}</code><br />
+      Session: <code>{{ conn.sessionId() }}</code>
+    </p>
+    <p-button label="Salir de la sala" severity="secondary" (onClick)="leave()" />
+  } @else {
+    <label for="playerName">Nombre (opcional)</label>
+    <input pInputText id="playerName" [(ngModel)]="playerName" placeholder="Tu nombre" />
+
+    <label for="roomId">Room ID</label>
+    <input pInputText id="roomId" [(ngModel)]="roomIdInput" placeholder="Pega un roomId" />
+
+    <div class="actions">
+      <p-button label="Crear lobby" icon="fa-solid fa-plus" (onClick)="createRoom()" [loading]="loading()" />
+      <p-button label="Unirse" icon="fa-solid fa-right-to-bracket" (onClick)="joinRoom()" [loading]="loading()" />
+      <p-button label="Listar salas" icon="fa-solid fa-list" severity="secondary" (onClick)="refreshRooms()" />
+    </div>
+  }
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+
+  @if (!conn.connected() && rooms().length) {
+    <ul class="room-list">
+      @for (room of rooms(); track room.roomId) {
+        <li>
+          <span>{{ room.roomId }} ({{ room.clients }}/{{ room.maxClients }})</span>
+          <p-button label="Usar" size="small" (onClick)="selectRoom(room.roomId)" />
+        </li>
+      }
+    </ul>
+  }
+</section>
+
+@if (conn.inLobby()) {
+  <section class="panel">
+    <h2><i class="fa-solid fa-users"></i> Lobby</h2>
+
+    <div class="hero-select">
+      <div>
+        <label>Héroe izquierdo</label>
+        <p-select [options]="heroOptions" [(ngModel)]="heroLeft" optionLabel="label" optionValue="value" />
+      </div>
+      <div>
+        <label>Héroe derecho</label>
+        <p-select [options]="heroOptions" [(ngModel)]="heroRight" optionLabel="label" optionValue="value" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <p-button label="Enviar héroes" icon="fa-solid fa-user-group" (onClick)="sendSelection()" />
+      <p-button label="Ready" icon="fa-solid fa-check" severity="success" (onClick)="sendReady()" />
+    </div>
+
+    <ul class="players">
+      @for (entry of conn.players(); track entry.key) {
+        <li>
+          <strong>{{ entry.player.name }}</strong>
+          @if (entry.key === conn.myPlayerId()) {
+            <p-tag value="TÚ" severity="info" />
+          }
+          @if (entry.player.selectedHeroes?.length) {
+            <span class="muted">{{ entry.player.selectedHeroes?.join(' / ') }}</span>
+          }
+          @if (entry.player.isReady) {
+            <p-tag value="Ready" severity="success" />
+          }
+        </li>
+      }
+    </ul>
+  </section>
+}

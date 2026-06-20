@@ -1,0 +1,80 @@
+@if (conn.inGame()) {
+  <section class="panel">
+    <div class="header-row">
+      <h2><i class="fa-solid fa-gamepad"></i> Partida</h2>
+      <div class="auto-toggle">
+        <label for="autoMode">Modo IA</label>
+        <p-toggleswitch
+          inputId="autoMode"
+          [ngModel]="autoMode()"
+          (ngModelChange)="onAutoModeChange($event)"
+        />
+      </div>
+    </div>
+
+    <p-tag [value]="'Estado: ' + (conn.gameState()?.status ?? '—')" />
+
+    <div class="players-grid">
+      @for (entry of conn.players(); track entry.key) {
+        <article class="player-card" [class.is-me]="entry.key === conn.myPlayerId()">
+          <header>
+            <strong>{{ entry.player.name }}</strong>
+            @if (entry.key === conn.myPlayerId()) {
+              <p-tag value="TÚ" severity="info" />
+            }
+          </header>
+          @if (entry.player.crown) {
+            <p>Corona: {{ entry.player.crown.health }} / {{ entry.player.crown.maxHeal }}</p>
+            <p>Bastión: altura {{ entry.player.bulwark?.height ?? 0 }}</p>
+            <p>
+              Izq: {{ heroLabel(entry.player.heroLeft!.heroType) }}
+              ({{ levelLabel(entry.player.heroLeft!.level) }},
+              E {{ entry.player.heroLeft!.energy }}/{{ entry.player.heroLeft!.energyThreshold }},
+              XP {{ entry.player.heroLeft!.xp }})
+            </p>
+            <p>
+              Der: {{ heroLabel(entry.player.heroRight!.heroType) }}
+              ({{ levelLabel(entry.player.heroRight!.level) }},
+              E {{ entry.player.heroRight!.energy }}/{{ entry.player.heroRight!.energyThreshold }},
+              XP {{ entry.player.heroRight!.xp }})
+            </p>
+            @if (entry.player.turn) {
+              <p class="muted">
+                Turno: {{ entry.player.turn.phase }} · giros {{ entry.player.turn.spinsRemaining }}
+              </p>
+            }
+          }
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2><i class="fa-solid fa-circle-notch"></i> Tus ruedas</h2>
+    <app-wheels-panel />
+    <div class="actions">
+      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin(); onGameAction()" />
+      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins(); onGameAction()" />
+      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onGameAction()" />
+    </div>
+  </section>
+
+  <p-dialog
+    header="Fin de partida"
+    [visible]="gameOverVisible()"
+    [modal]="true"
+    [closable]="true"
+    (onHide)="closeGameOver()"
+  >
+    @if (gameOver(); as over) {
+      <p>
+        @if (over.isDraw) {
+          Empate — ambas coronas llegaron a 0.
+        } @else {
+          Victoria del jugador <code>{{ over.winnerId }}</code>
+        }
+      </p>
+      <p class="muted">{{ over.message }}</p>
+    }
+  </p-dialog>
+}

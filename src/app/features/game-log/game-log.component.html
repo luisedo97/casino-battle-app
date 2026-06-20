@@ -1,0 +1,16 @@
+<div class="log-header">
+  <h2><i class="fa-solid fa-terminal"></i> Log</h2>
+  <p-button label="Limpiar" size="small" severity="secondary" (onClick)="conn.clearLogs()" />
+</div>
+
+<p-scrollPanel [style]="{ width: '100%', height: '320px' }">
+  <div class="log-body">
+    @for (entry of conn.logs(); track $index) {
+      <div [class]="logClass(entry.type)">
+        <span class="time">[{{ entry.time }}]</span> {{ entry.message }}
+      </div>
+    } @empty {
+      <p class="muted">Sin eventos aún.</p>
+    }
+  </div>
+</p-scrollPanel>

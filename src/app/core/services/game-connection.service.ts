@@ -1,0 +1,271 @@
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { Client, Room } from 'colyseus.js';
+import { environment } from '../../../environments/environment';
+import { HeroType } from '../constants/game.constants';
+import {
+  GameOverPayload,
+  GameRoomState,
+  LobbyState,
+  LogEntry,
+  PlayerState,
+  TurnResolutionReport,
+} from '../models/game.models';
+import { ApiService } from './api.service';
+
+@Injectable({ providedIn: 'root' })
+export class GameConnectionService {
+  private api = inject(ApiService);
+  private client = new Client(environment.wsUrl);
+  private room: Room | null = null;
+
+  readonly roomId = signal<string | null>(null);
+  readonly roomName = signal<string | null>(null);
+  readonly sessionId = signal<string | null>(null);
+  readonly myPlayerId = signal<string | null>(null);
+  readonly connected = computed(() => this.roomId() !== null);
+  readonly inGame = computed(() => this.roomName() === 'game');
+  readonly inLobby = computed(() => this.roomName() === 'lobby');
+
+  readonly lobbyState = signal<LobbyState | null>(null);
+  readonly gameState = signal<GameRoomState | null>(null);
+  readonly logs = signal<LogEntry[]>([]);
+  readonly gameOver = signal<GameOverPayload | null>(null);
+  readonly lastReport = signal<TurnResolutionReport | null>(null);
+
+  readonly myPlayer = computed(() => {
+    const playerId = this.myPlayerId();
+    if (!playerId) return null;
+
+    if (this.inGame()) {
+      return this.getPlayerFromMap(this.gameState()?.players, playerId);
+    }
+
+    return this.getPlayerFromMap(this.lobbyState()?.players, playerId);
+  });
+
+  readonly players = computed(() => {
+    const map = this.inGame()
+      ? this.gameState()?.players
+      : this.lobbyState()?.players;
+    return this.playersFromMap(map);
+  });
+
+  getPlayerFromMap(
+    map: Map<string, PlayerState> | Record<string, PlayerState> | undefined,
+    key: string
+  ): PlayerState | null {
+    if (!map) return null;
+    if (map instanceof Map) {
+      return map.get(key) ?? null;
+    }
+    return map[key] ?? null;
+  }
+
+  playersFromMap(
+    map: Map<string, PlayerState> | Record<string, PlayerState> | undefined
+  ): Array<{ key: string; player: PlayerState }> {
+    if (!map) return [];
+
+    if (map instanceof Map) {
+      return [...map.entries()].map(([key, player]) => ({ key, player }));
+    }
+
+    return Object.entries(map).map(([key, player]) => ({ key, player }));
+  }
+
+  private pushLog(message: string, type: LogEntry['type'] = 'event') {
+    this.logs.update((entries) => [
+      ...entries,
+      {
+        time: new Date().toLocaleTimeString(),
+        message,
+        type,
+      },
+    ]);
+  }
+
+  private logReport(report?: TurnResolutionReport) {
+    if (!report?.entries?.length) return;
+
+    for (const entry of report.entries) {
+      const prefix = entry.playerName ? `[${entry.playerName}] ` : '';
+      const type =
+        entry.phase === 'combat'
+          ? 'combat'
+          : entry.phase === 'wheels'
+            ? 'wheels'
+            : 'summary';
+      this.pushLog(`${prefix}${entry.message}`, type);
+    }
+  }
+
+  async createAndJoinLobby(playerName?: string): Promise<string> {
+    const roomId = await this.api.createRoom();
+    await this.joinLobby(roomId, playerName);
+    return roomId;
+  }
+
+  async joinLobby(roomId: string, playerName?: string): Promise<void> {
+    await this.leave(false);
+    const room = await this.client.joinById(roomId, playerName ? { name: playerName } : {});
+    this.attachRoom(room, 'lobby');
+    this.myPlayerId.set(room.sessionId);
+    this.pushLog(`Unido al lobby (${room.roomId})`, 'ok');
+  }
+
+  async joinById(roomId: string): Promise<void> {
+    await this.leave(false);
+    const room = await this.client.joinById(roomId);
+    this.attachRoom(room, room.name as 'lobby' | 'game');
+    this.myPlayerId.set(room.name === 'lobby' ? room.sessionId : null);
+    this.pushLog(`Unido a sala ${room.name} (${room.roomId})`, 'ok');
+  }
+
+  private attachRoom(room: Room, expectedName: 'lobby' | 'game') {
+    this.room = room;
+    this.roomId.set(room.roomId);
+    this.roomName.set(expectedName);
+    this.sessionId.set(room.sessionId);
+    this.gameOver.set(null);
+
+    room.onStateChange((state) => {
+      if (expectedName === 'lobby') {
+        this.lobbyState.set(state as LobbyState);
+      } else {
+        this.gameState.set(state as GameRoomState);
+      }
+    });
+
+    if (expectedName === 'lobby') {
+      this.lobbyState.set(room.state as LobbyState);
+      this.bindLobbyHandlers(room);
+    } else {
+      this.gameState.set(room.state as GameRoomState);
+      this.bindGameHandlers(room);
+    }
+  }
+
+  private bindLobbyHandlers(room: Room) {
+    room.onMessage('chat-room', (msg: string) => this.pushLog(`chat: ${msg}`, 'chat'));
+    room.onMessage('selection-error', (msg: string) => this.pushLog(`selection-error: ${msg}`, 'err'));
+
+    room.onMessage('transfer-room', async (payload: string | { roomId: string; message?: string }) => {
+      const gameRoomId = typeof payload === 'string' ? payload : payload.roomId;
+      const message = typeof payload === 'string' ? '' : (payload.message ?? '');
+      this.pushLog(`transfer-room → game ${gameRoomId}${message ? ` (${message})` : ''}`, 'event');
+      await this.leave(false);
+      const gameRoom = await this.client.joinById(gameRoomId);
+      this.attachRoom(gameRoom, 'game');
+      this.myPlayerId.set(null);
+      this.pushLog(`Conectado a partida (${gameRoom.roomId})`, 'ok');
+    });
+  }
+
+  private bindGameHandlers(room: Room) {
+    const assignPlayer = (payload: { playerId: string }) => {
+      this.myPlayerId.set(payload.playerId);
+      this.pushLog(`Asignado a jugador: ${payload.playerId}`, 'ok');
+    };
+
+    room.onMessage('chat-room', (msg: string) => this.pushLog(`chat: ${msg}`, 'chat'));
+    room.onMessage('reconnected', assignPlayer);
+    room.onMessage('player-assigned', assignPlayer);
+    room.onMessage('game-info', (payload: { message: string }) =>
+      this.pushLog(`game-info: ${payload.message}`, 'event')
+    );
+    room.onMessage('start-game', () => this.pushLog('La partida comenzó', 'ok'));
+    room.onMessage('turn-started', (payload: { message: string }) =>
+      this.pushLog(`turn-started: ${payload.message}`, 'event')
+    );
+    room.onMessage('turn-updated', (payload: { action: string; phase: string }) =>
+      this.pushLog(`turn-updated: ${payload.action} → ${payload.phase}`, 'event')
+    );
+    room.onMessage('turn-error', (payload: { error: string }) =>
+      this.pushLog(`turn-error: ${payload.error}`, 'err')
+    );
+    room.onMessage('turn-resolved', (payload: { message: string; report?: TurnResolutionReport }) => {
+      this.pushLog(`turn-resolved: ${payload.message}`, 'event');
+      this.lastReport.set(payload.report ?? null);
+      this.logReport(payload.report);
+    });
+    room.onMessage('game-over', (payload: GameOverPayload) => {
+      const summary = payload.isDraw
+        ? 'Empate'
+        : `Ganador ${payload.winnerId}`;
+      this.pushLog(`game-over: ${summary} — ${payload.message}`, 'ok');
+      this.lastReport.set(payload.report ?? null);
+      this.logReport(payload.report);
+      this.gameOver.set(payload);
+    });
+    room.onMessage('room-error', (payload: { error: string }) =>
+      this.pushLog(`room-error: ${payload.error}`, 'err')
+    );
+  }
+
+  selectCharacter(characters: [HeroType, HeroType]) {
+    this.room?.send('selectCharacter', { characters });
+    this.pushLog(`selectCharacter: ${characters.join(', ')}`, 'event');
+  }
+
+  ready() {
+    this.room?.send('ready');
+    this.pushLog('ready enviado', 'event');
+  }
+
+  spin() {
+    this.room?.send('spin');
+    this.pushLog('Giro enviado', 'event');
+  }
+
+  skipSpins() {
+    this.room?.send('skipSpins');
+    this.pushLog('Giros saltados', 'event');
+  }
+
+  confirmTurn() {
+    this.room?.send('confirmTurn');
+    this.pushLog('Turno confirmado', 'event');
+  }
+
+  lockWheel(index: number) {
+    this.room?.send('lock', { indices: [index] });
+    this.pushLog(`lock rueda ${index + 1}`, 'event');
+  }
+
+  unlockWheel(index: number) {
+    this.room?.send('unlock', { indices: [index] });
+    this.pushLog(`unlock rueda ${index + 1}`, 'event');
+  }
+
+  async leave(logLeave = true): Promise<void> {
+    if (!this.room) return;
+
+    const id = this.room.roomId;
+    await this.room.leave();
+    this.room = null;
+    this.roomId.set(null);
+    this.roomName.set(null);
+    this.sessionId.set(null);
+    this.myPlayerId.set(null);
+    this.lobbyState.set(null);
+    this.gameState.set(null);
+    this.gameOver.set(null);
+
+    if (logLeave) {
+      this.pushLog(`Saliste de la sala ${id}`, 'event');
+    }
+  }
+
+  clearLogs() {
+    this.logs.set([]);
+    this.lastReport.set(null);
+  }
+
+  appendLog(message: string, type: LogEntry['type'] = 'event') {
+    this.pushLog(message, type);
+  }
+
+  dismissGameOver() {
+    this.gameOver.set(null);
+  }
+}
