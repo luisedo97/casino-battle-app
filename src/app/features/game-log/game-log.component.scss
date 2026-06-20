@@ -13,6 +13,15 @@
   }
 }
 
+.log-scroll {
+  height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  padding: 0.75rem;
+  background: var(--surface-ground);
+}
+
 .log-body {
   font-family: ui-monospace, monospace;
   font-size: 0.8rem;

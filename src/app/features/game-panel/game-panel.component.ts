@@ -30,7 +30,7 @@ export class GamePanelComponent implements OnDestroy {
     if (!this.autoMode() || !this.conn.inGame()) return;
 
     const revision = this.conn.stateRevision();
-    const player = this.conn.myPlayer();
+    const player = this.conn.myPlayerView();
     const phase = player?.turn?.phase;
     const confirmed = player?.turn?.confirmed;
 
@@ -83,7 +83,7 @@ export class GamePanelComponent implements OnDestroy {
   private runAutoTurn() {
     if (!this.autoMode() || !this.conn.inGame()) return;
 
-    const player = this.conn.myPlayer();
+    const player = this.conn.myPlayerView();
     if (!player?.turn || player.turn.confirmed) return;
 
     const { phase } = player.turn;

@@ -59,7 +59,7 @@
     </div>
 
     <ul class="players">
-      @for (entry of conn.players(); track entry.key) {
+      @for (entry of conn.playersView(); track entry.key) {
         <li>
           <strong>{{ entry.player.name }}</strong>
           @if (entry.key === conn.myPlayerId()) {

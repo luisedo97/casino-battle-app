@@ -5,12 +5,15 @@ import { HeroType } from '../constants/game.constants';
 import {
   GameOverPayload,
   GameRoomState,
+  HeroView,
   LobbyState,
   LogEntry,
   PlayerState,
+  PlayerView,
   TurnResolutionReport,
 } from '../models/game.models';
 import { ApiService } from './api.service';
+import { schemaToArray } from '../utils/schema.utils';
 
 type RoomKind = 'lobby' | 'game';
 
@@ -60,6 +63,20 @@ export class GameConnectionService {
     return this.getPlayerFromMap(players, playerId);
   });
 
+  /** Snapshot inmutable para templates — nueva referencia en cada patch de Colyseus. */
+  readonly myPlayerView = computed((): PlayerView | null => {
+    this.stateRevision();
+    const playerId = this.myPlayerId();
+    if (!playerId || !this.room) return null;
+
+    const players = this.inGame()
+      ? (this.room.state as GameRoomState).players
+      : (this.room.state as LobbyState).players;
+
+    const player = this.getPlayerFromMap(players, playerId);
+    return player ? this.toPlayerView(player) : null;
+  });
+
   readonly players = computed(() => {
     this.stateRevision();
     if (!this.room) return [];
@@ -70,6 +87,60 @@ export class GameConnectionService {
 
     return this.playersFromMap(map);
   });
+
+  readonly playersView = computed((): Array<{ key: string; player: PlayerView }> => {
+    this.stateRevision();
+    if (!this.room) return [];
+
+    const map = this.inGame()
+      ? (this.room.state as GameRoomState).players
+      : (this.room.state as LobbyState).players;
+
+    return this.playersFromMap(map).map(({ key, player }) => ({
+      key,
+      player: this.toPlayerView(player),
+    }));
+  });
+
+  private toHeroView(hero: PlayerState['heroLeft']): HeroView | undefined {
+    if (!hero) return undefined;
+    return {
+      heroType: String(hero.heroType),
+      position: String(hero.position),
+      level: Number(hero.level),
+      xp: Number(hero.xp),
+      energy: Number(hero.energy),
+      energyThreshold: Number(hero.energyThreshold),
+    };
+  }
+
+  private toPlayerView(player: PlayerState): PlayerView {
+    const wheels = schemaToArray(player.turn?.wheels).map((wheel) => ({
+      symbol: String(wheel.symbol),
+      locked: Boolean(wheel.locked),
+    }));
+
+    return {
+      id: player.id,
+      name: player.name,
+      selectedHeroes: player.selectedHeroes ? [...player.selectedHeroes] : undefined,
+      isReady: player.isReady,
+      crown: player.crown
+        ? { health: player.crown.health, maxHeal: player.crown.maxHeal }
+        : undefined,
+      bulwark: player.bulwark ? { height: player.bulwark.height } : undefined,
+      heroLeft: this.toHeroView(player.heroLeft),
+      heroRight: this.toHeroView(player.heroRight),
+      turn: player.turn
+        ? {
+            phase: String(player.turn.phase),
+            spinsRemaining: Number(player.turn.spinsRemaining),
+            confirmed: Boolean(player.turn.confirmed),
+            wheels,
+          }
+        : undefined,
+    };
+  }
 
   private bumpState() {
     this.stateRevision.update((v) => v + 1);
@@ -217,10 +288,16 @@ export class GameConnectionService {
       this.runInAngular(() => this.pushLog('La partida comenzó', 'ok'))
     );
     room.onMessage('turn-started', (payload: { message: string }) =>
-      this.runInAngular(() => this.pushLog(`turn-started: ${payload.message}`, 'event'))
+      this.runInAngular(() => {
+        this.pushLog(`turn-started: ${payload.message}`, 'event');
+        this.bumpState();
+      })
     );
     room.onMessage('turn-updated', (payload: { action: string; phase: string }) =>
-      this.runInAngular(() => this.pushLog(`turn-updated: ${payload.action} → ${payload.phase}`, 'event'))
+      this.runInAngular(() => {
+        this.pushLog(`turn-updated: ${payload.action} → ${payload.phase}`, 'event');
+        this.bumpState();
+      })
     );
     room.onMessage('turn-error', (payload: { error: string }) =>
       this.runInAngular(() => this.pushLog(`turn-error: ${payload.error}`, 'err'))
@@ -230,6 +307,7 @@ export class GameConnectionService {
         this.pushLog(`turn-resolved: ${payload.message}`, 'event');
         this.lastReport.set(payload.report ?? null);
         this.logReport(payload.report);
+        this.bumpState();
       });
     });
     room.onMessage('game-over', (payload: GameOverPayload) => {

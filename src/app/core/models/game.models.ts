@@ -45,6 +45,34 @@ export interface WheelState {
   locked: boolean;
 }
 
+export interface TurnView {
+  phase: string;
+  spinsRemaining: number;
+  confirmed: boolean;
+  wheels: WheelState[];
+}
+
+export interface HeroView {
+  heroType: string;
+  position: string;
+  level: number;
+  xp: number;
+  energy: number;
+  energyThreshold: number;
+}
+
+export interface PlayerView {
+  id: string;
+  name: string;
+  selectedHeroes?: string[];
+  isReady?: boolean;
+  crown?: { health: number; maxHeal: number };
+  bulwark?: { height: number };
+  heroLeft?: HeroView;
+  heroRight?: HeroView;
+  turn?: TurnView;
+}
+
 export interface TurnState {
   phase: string;
   spinsRemaining: number;

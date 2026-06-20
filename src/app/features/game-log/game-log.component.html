@@ -3,7 +3,7 @@
   <p-button label="Limpiar" size="small" severity="secondary" (onClick)="conn.clearLogs()" />
 </div>
 
-<p-scrollPanel [style]="{ width: '100%', height: '320px' }">
+<div class="log-scroll" #logScroll>
   <div class="log-body">
     @for (entry of conn.logs(); track $index) {
       <div [class]="logClass(entry.type)">
@@ -13,4 +13,4 @@
       <p class="muted">Sin eventos aún.</p>
     }
   </div>
-</p-scrollPanel>
+</div>

@@ -15,7 +15,7 @@
     <p-tag [value]="'Estado: ' + (conn.gameState()?.status ?? '—')" />
 
     <div class="players-grid">
-      @for (entry of conn.players(); track entry.key) {
+      @for (entry of conn.playersView(); track entry.key) {
         <article class="player-card" [class.is-me]="entry.key === conn.myPlayerId()">
           <header>
             <strong>{{ entry.player.name }}</strong>
@@ -53,9 +53,9 @@
     <h2><i class="fa-solid fa-circle-notch"></i> Tus ruedas</h2>
     <app-wheels-panel />
     <div class="actions">
-      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin()" [disabled]="!conn.myPlayer()" />
-      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins()" [disabled]="!conn.myPlayer()" />
-      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onTurnResolved()" [disabled]="!conn.myPlayer()" />
+      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin()" [disabled]="!conn.myPlayerView()" />
+      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins()" [disabled]="!conn.myPlayerView()" />
+      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onTurnResolved()" [disabled]="!conn.myPlayerView()" />
     </div>
   </section>
 

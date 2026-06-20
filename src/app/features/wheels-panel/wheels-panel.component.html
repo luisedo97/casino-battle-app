@@ -1,11 +1,11 @@
 @if (wheels().length) {
   <div class="meta">
     <p-tag [value]="'Fase: ' + phaseLabel()" severity="info" />
-    <p-tag [value]="'Giros: ' + (player()?.turn?.spinsRemaining ?? 0)" />
+    <p-tag [value]="'Giros: ' + (playerView()?.turn?.spinsRemaining ?? 0)" />
   </div>
 
   <div class="grid">
-    @for (wheel of wheels(); track $index) {
+    @for (wheel of wheels(); track $index + wheel.symbol + wheel.locked) {
       @let meta = symbolMeta(wheel.symbol);
       <article class="wheel-card" [class.locked]="wheel.locked">
         <div class="wheel-title">Rueda {{ $index + 1 }}</div>
