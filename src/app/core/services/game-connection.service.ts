@@ -55,10 +55,13 @@ export class GameConnectionService {
     key: string
   ): PlayerState | null {
     if (!map) return null;
-    if (map instanceof Map) {
-      return map.get(key) ?? null;
+
+    const schemaMap = map as { get?: (k: string) => PlayerState | undefined };
+    if (typeof schemaMap.get === 'function') {
+      return schemaMap.get(key) ?? null;
     }
-    return map[key] ?? null;
+
+    return (map as Record<string, PlayerState>)[key] ?? null;
   }
 
   playersFromMap(
@@ -66,11 +69,20 @@ export class GameConnectionService {
   ): Array<{ key: string; player: PlayerState }> {
     if (!map) return [];
 
-    if (map instanceof Map) {
-      return [...map.entries()].map(([key, player]) => ({ key, player }));
+    const schemaMap = map as {
+      forEach?: (cb: (player: PlayerState, key: string) => void) => void;
+    };
+
+    if (typeof schemaMap.forEach === 'function') {
+      const entries: Array<{ key: string; player: PlayerState }> = [];
+      schemaMap.forEach((player, key) => entries.push({ key, player }));
+      return entries;
     }
 
-    return Object.entries(map).map(([key, player]) => ({ key, player }));
+    return Object.entries(map as Record<string, PlayerState>).map(([key, player]) => ({
+      key,
+      player,
+    }));
   }
 
   private pushLog(message: string, type: LogEntry['type'] = 'event') {
