@@ -102,6 +102,15 @@ export class GameConnectionService {
     }));
   });
 
+  readonly opponentPlayerView = computed((): PlayerView | null => {
+    this.stateRevision();
+    const myId = this.myPlayerId();
+    if (!myId) return null;
+
+    const opponent = this.playersView().find((entry) => entry.key !== myId);
+    return opponent?.player ?? null;
+  });
+
   private toHeroView(hero: PlayerState['heroLeft']): HeroView | undefined {
     if (!hero) return undefined;
     return {

@@ -1,44 +1,81 @@
-.app-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--surface-border);
-  background: var(--surface-card);
+.screen {
+  min-height: 100vh;
+  padding: clamp(1rem, 2vw, 2rem);
+  background:
+    radial-gradient(circle at 50% 16%, rgba(255, 178, 90, 0.16), transparent 32rem),
+    radial-gradient(circle at 50% 80%, rgba(29, 100, 130, 0.18), transparent 28rem),
+    linear-gradient(180deg, #170805 0%, #27100b 42%, #120706 100%);
+}
 
-  h1 {
-    margin: 0 0 0.25rem;
-    font-size: 1.35rem;
+.landing {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(360px, 520px);
+  gap: 1.2rem;
+  align-items: start;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.hero-copy,
+.lobby-board,
+.glossary {
+  border: 1px solid rgba(255, 199, 119, 0.16);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(71, 33, 18, 0.92), rgba(20, 10, 8, 0.95)),
+    var(--surface-card);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+
+.hero-copy {
+  padding: clamp(1.5rem, 4vw, 3rem);
+  position: sticky;
+  top: 1rem;
+
+  .eyebrow {
+    color: #ffd18a;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
   }
 
-  p {
+  h1 {
+    margin: 0.2rem 0 0.8rem;
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    line-height: 0.9;
+    color: #ffe2aa;
+    text-shadow: 0 4px 0 #5f2015, 0 0 30px rgba(255, 178, 90, 0.18);
+  }
+
+  p:not(.eyebrow) {
     margin: 0;
-    color: var(--text-muted);
+    color: #dec3a0;
+    font-size: 1.05rem;
+  }
+}
+
+.lobby-board {
+  padding: 1rem;
+}
+
+.glossary {
+  grid-column: 1 / -1;
+  padding: 1rem;
+
+  h2 {
+    margin: 0 0 0.75rem;
+    color: #ffd18a;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
     font-size: 0.9rem;
   }
 }
 
-.layout {
-  display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 1rem;
-  padding: 1rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.sidebar,
-.main {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.panel {
-  background: var(--surface-card);
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 1rem;
-}
-
 .glossary ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.75rem;
   list-style: none;
   padding: 0;
   margin: 0;
@@ -47,8 +84,10 @@
 .glossary li {
   display: flex;
   gap: 0.65rem;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid var(--surface-border);
+  padding: 0.75rem;
+  border: 1px solid rgba(255, 199, 119, 0.12);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
 
   i {
     font-size: 1.25rem;
@@ -67,8 +106,17 @@
   }
 }
 
+.game-screen {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
 @media (max-width: 960px) {
-  .layout {
+  .landing {
     grid-template-columns: 1fr;
+  }
+
+  .hero-copy {
+    position: static;
   }
 }

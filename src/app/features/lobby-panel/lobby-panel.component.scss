@@ -1,13 +1,41 @@
-.panel {
+.lobby-panel {
   margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.18);
+  border: 1px solid rgba(255, 199, 119, 0.12);
 }
 
-h2 {
-  margin: 0 0 0.75rem;
-  font-size: 0.95rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
+.panel-heading {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+
+  .seal {
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: #ffd18a;
+    background: radial-gradient(circle, rgba(255, 183, 91, 0.28), rgba(0, 0, 0, 0.22));
+    border: 1px solid rgba(255, 199, 119, 0.2);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #ffd18a;
+  }
+
+  p {
+    margin: 0.15rem 0 0;
+    color: #c9aa84;
+    font-size: 0.86rem;
+  }
 }
 
 label {
@@ -17,6 +45,13 @@ label {
   margin: 0.5rem 0 0.25rem;
 }
 
+.field-grid,
+.hero-select {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -24,9 +59,22 @@ label {
   margin-top: 0.75rem;
 }
 
-.status.ok {
-  color: var(--ok);
-  margin-bottom: 0.75rem;
+.connection-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.85rem;
+  border-radius: 12px;
+  background: rgba(37, 15, 9, 0.72);
+  border: 1px solid rgba(255, 199, 119, 0.14);
+
+  strong {
+    color: var(--ok);
+  }
+
+  span {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
 }
 
 .error {
@@ -45,16 +93,30 @@ label {
 .players li {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   flex-wrap: wrap;
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--surface-border);
+  padding: 0.7rem;
+  border: 1px solid rgba(255, 199, 119, 0.1);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.18);
+
+  strong {
+    display: block;
+    color: #f3d6a8;
+  }
+
+  small,
+  span {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
 }
 
-.hero-select {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.tags {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
 }
 
 .muted {
@@ -63,6 +125,7 @@ label {
 }
 
 @media (max-width: 640px) {
+  .field-grid,
   .hero-select {
     grid-template-columns: 1fr;
   }

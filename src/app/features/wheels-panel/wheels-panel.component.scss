@@ -1,52 +1,124 @@
 .meta {
   display: flex;
+  justify-content: center;
   gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-  gap: 0.65rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+
+  &.compact {
+    gap: 0.35rem;
+  }
+
+  &.inverted .wheel-card {
+    transform: rotate(180deg);
+  }
 }
 
 .wheel-card {
-  background: var(--surface-ground);
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
-  padding: 0.65rem;
+  background:
+    radial-gradient(circle at 50% 32%, rgba(255, 199, 119, 0.12), transparent 4rem),
+    linear-gradient(180deg, rgba(70, 31, 18, 0.92), rgba(13, 7, 6, 0.94));
+  border: 1px solid rgba(255, 199, 119, 0.16);
+  border-radius: 12px;
+  padding: 0.45rem;
   text-align: center;
+  box-shadow: inset 0 -10px 22px rgba(0, 0, 0, 0.22);
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
 
   &.locked {
     border-color: var(--warn);
     box-shadow: inset 0 0 0 1px rgba(210, 153, 34, 0.25);
   }
+
+  &.spinning {
+    border-color: rgba(88, 166, 255, 0.55);
+    box-shadow:
+      inset 0 0 0 1px rgba(88, 166, 255, 0.2),
+      0 0 18px rgba(88, 166, 255, 0.18);
+
+    .wheel-symbol {
+      animation: reel-blur 0.12s linear infinite;
+    }
+  }
+
+  &.read-only {
+    padding-bottom: 0.35rem;
+  }
 }
 
 .wheel-title {
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .wheel-symbol {
-  font-size: 1.75rem;
-  margin: 0.35rem 0;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: 0.25rem auto;
+  border-radius: 10px;
+  font-size: 1.45rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.15s ease;
+}
+
+.grid.compact .wheel-symbol {
+  width: 40px;
+  height: 40px;
+  font-size: 1.25rem;
 }
 
 .wheel-label {
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
+  line-height: 1.2;
 }
 
-code {
-  display: block;
+.lock-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.15rem;
+  border-radius: 50%;
+  color: var(--warn);
+  background: rgba(210, 153, 34, 0.12);
   font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-bottom: 0.5rem;
 }
 
 .muted {
   color: var(--text-muted);
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+@keyframes reel-blur {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.04);
+    filter: blur(1px);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(56px, 1fr));
+  }
 }

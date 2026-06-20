@@ -1,7 +1,15 @@
 @if (conn.inGame()) {
-  <section class="panel">
-    <div class="header-row">
-      <h2><i class="fa-solid fa-gamepad"></i> Partida</h2>
+  @let me = myPlayer();
+  @let rival = opponentPlayer();
+
+  <section class="game-hud">
+    <div>
+      <p class="eyebrow"><i class="fa-solid fa-crown"></i> Casino Battle</p>
+      <h1>Mesa Wheels</h1>
+    </div>
+
+    <div class="hud-actions">
+      <p-tag [value]="'Estado: ' + (conn.gameState()?.status ?? '—')" severity="info" />
       <div class="auto-toggle">
         <label for="autoMode">Modo IA</label>
         <p-toggleswitch
@@ -10,54 +18,179 @@
           (ngModelChange)="onAutoModeChange($event)"
         />
       </div>
+      <p-button label="Salir" icon="fa-solid fa-door-open" severity="secondary" (onClick)="conn.leave()" />
     </div>
+  </section>
 
-    <p-tag [value]="'Estado: ' + (conn.gameState()?.status ?? '—')" />
+  <section class="duel-arena">
+    <div class="table-glow"></div>
 
-    <div class="players-grid">
-      @for (entry of conn.playersView(); track entry.key) {
-        <article class="player-card" [class.is-me]="entry.key === conn.myPlayerId()">
-          <header>
-            <strong>{{ entry.player.name }}</strong>
-            @if (entry.key === conn.myPlayerId()) {
-              <p-tag value="TÚ" severity="info" />
-            }
+    @if (rival) {
+      <div
+        class="duel-row opponent"
+        [class.feedback-pulse]="pulseTarget() === 'opponent' || pulseTarget() === 'both'"
+      >
+        <ng-container
+          [ngTemplateOutlet]="heroSlot"
+          [ngTemplateOutletContext]="{ hero: rival.heroLeft, side: 'left', facing: 'down' }"
+        />
+
+        <div class="wheel-lane rival-lane">
+          <header class="lane-header">
+            <span class="lane-tag">Rival</span>
+            <strong>{{ rival.name }}</strong>
           </header>
-          @if (entry.player.crown) {
-            <p>Corona: {{ entry.player.crown.health }} / {{ entry.player.crown.maxHeal }}</p>
-            <p>Bastión: altura {{ entry.player.bulwark?.height ?? 0 }}</p>
-            <p>
-              Izq: {{ heroLabel(entry.player.heroLeft!.heroType) }}
-              ({{ levelLabel(entry.player.heroLeft!.level) }},
-              E {{ entry.player.heroLeft!.energy }}/{{ entry.player.heroLeft!.energyThreshold }},
-              XP {{ entry.player.heroLeft!.xp }})
-            </p>
-            <p>
-              Der: {{ heroLabel(entry.player.heroRight!.heroType) }}
-              ({{ levelLabel(entry.player.heroRight!.level) }},
-              E {{ entry.player.heroRight!.energy }}/{{ entry.player.heroRight!.energyThreshold }},
-              XP {{ entry.player.heroRight!.xp }})
-            </p>
-            @if (entry.player.turn) {
-              <p class="muted">
-                Turno: {{ entry.player.turn.phase }} · giros {{ entry.player.turn.spinsRemaining }}
-              </p>
-            }
+
+          <div class="crown-strip">
+            <div class="crown-icon"><i class="fa-solid fa-crown"></i></div>
+            <div class="crown-stats">
+              <span>Corona {{ rival.crown?.health ?? 0 }}/{{ rival.crown?.maxHeal ?? 0 }}</span>
+              <div class="bar hp"><i [style.width.%]="hpPercent(rival)"></i></div>
+              <div class="bulwark-row">
+                <span>Bastión {{ rival.bulwark?.height ?? 0 }}</span>
+                <div class="bulwark">
+                  @for (_ of bulwarkBlocks(rival.bulwark?.height ?? 0); track $index) {
+                    <b></b>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <app-wheels-panel
+            [wheels]="opponentWheels()"
+            [interactive]="false"
+            [compact]="true"
+            [inverted]="true"
+            [phase]="rival.turn?.phase"
+            [spinsRemaining]="rival.turn?.spinsRemaining"
+          />
+
+          @if (rival.turn) {
+            <div class="turn-strip">
+              <span>{{ rival.turn.phase }}</span>
+              <span>Giros {{ rival.turn.spinsRemaining }}</span>
+            </div>
           }
-        </article>
-      }
+        </div>
+
+        <ng-container
+          [ngTemplateOutlet]="heroSlot"
+          [ngTemplateOutletContext]="{ hero: rival.heroRight, side: 'right', facing: 'down' }"
+        />
+      </div>
+    }
+
+    <div class="vs-divider">
+      <span>VS</span>
     </div>
+
+    @if (me) {
+      <div
+        class="duel-row self"
+        [class.feedback-pulse]="pulseTarget() === 'self' || pulseTarget() === 'both'"
+      >
+        <ng-container
+          [ngTemplateOutlet]="heroSlot"
+          [ngTemplateOutletContext]="{ hero: me.heroLeft, side: 'left', facing: 'up' }"
+        />
+
+        <div class="wheel-lane self-lane">
+          <header class="lane-header">
+            <span class="lane-tag you">Tú</span>
+            <strong>{{ me.name }}</strong>
+          </header>
+
+          <div class="crown-strip">
+            <div class="crown-icon"><i class="fa-solid fa-crown"></i></div>
+            <div class="crown-stats">
+              <span>Corona {{ me.crown?.health ?? 0 }}/{{ me.crown?.maxHeal ?? 0 }}</span>
+              <div class="bar hp"><i [style.width.%]="hpPercent(me)"></i></div>
+              <div class="bulwark-row">
+                <span>Bastión {{ me.bulwark?.height ?? 0 }}</span>
+                <div class="bulwark">
+                  @for (_ of bulwarkBlocks(me.bulwark?.height ?? 0); track $index) {
+                    <b></b>
+                  }
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <app-wheels-panel
+            [wheels]="myWheels()"
+            [interactive]="true"
+            [compact]="true"
+            [phase]="me.turn?.phase"
+            [spinsRemaining]="me.turn?.spinsRemaining"
+          />
+
+          <div class="actions">
+            <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin()" [disabled]="!me.turn" />
+            <p-button label="Saltar" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins()" [disabled]="!me.turn" />
+            <p-button
+              label="Confirmar"
+              icon="fa-solid fa-check"
+              severity="success"
+              (onClick)="conn.confirmTurn(); onTurnResolved()"
+              [disabled]="!me.turn"
+            />
+          </div>
+        </div>
+
+        <ng-container
+          [ngTemplateOutlet]="heroSlot"
+          [ngTemplateOutletContext]="{ hero: me.heroRight, side: 'right', facing: 'up' }"
+        />
+      </div>
+    }
   </section>
 
-  <section class="panel">
-    <h2><i class="fa-solid fa-circle-notch"></i> Tus ruedas</h2>
-    <app-wheels-panel />
-    <div class="actions">
-      <p-button label="Girar" icon="fa-solid fa-rotate" (onClick)="conn.spin()" [disabled]="!conn.myPlayerView()" />
-      <p-button label="Saltar giros" icon="fa-solid fa-forward" severity="secondary" (onClick)="conn.skipSpins()" [disabled]="!conn.myPlayerView()" />
-      <p-button label="Confirmar turno" icon="fa-solid fa-check" severity="success" (onClick)="conn.confirmTurn(); onTurnResolved()" [disabled]="!conn.myPlayerView()" />
+  <aside class="compact-log">
+    <app-game-log />
+  </aside>
+
+  @if (resolutionActive()) {
+    <div class="resolution-theater" aria-live="polite">
+      <header>
+        <i class="fa-solid fa-bolt"></i>
+        <span>Resolviendo turno</span>
+      </header>
+      <div class="theater-lines">
+        @for (entry of resolutionLines(); track $index + entry.message) {
+          <p [class]="resolutionClass(entry)">
+            @if (entry.playerName) {
+              <strong>{{ entry.playerName }}</strong>
+            }
+            {{ entry.message }}
+          </p>
+        }
+      </div>
     </div>
-  </section>
+  }
+
+  <ng-template #heroSlot let-hero="hero" let-side="side" let-facing="facing">
+    @if (hero) {
+      <article class="hero-slot" [class]="'side-' + side + ' facing-' + facing">
+        <div class="figure">
+          <i class="fa-solid fa-hat-wizard"></i>
+        </div>
+        <div class="hero-meta">
+          <small>{{ side === 'left' ? 'Izquierda' : 'Derecha' }}</small>
+          <strong>{{ heroLabel(hero.heroType) }}</strong>
+          <span>{{ levelLabel(hero.level) }}</span>
+        </div>
+        <div class="meter energy">
+          <span>E {{ hero.energy }}/{{ hero.energyThreshold }}</span>
+          <i [style.width.%]="energyPercent(hero)"></i>
+        </div>
+        <div class="meter xp">
+          <span>XP {{ hero.xp }}/6</span>
+          <i [style.width.%]="xpPercent(hero)"></i>
+        </div>
+      </article>
+    }
+  </ng-template>
 
   <p-dialog
     header="Fin de partida"

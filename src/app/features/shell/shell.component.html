@@ -1,31 +1,38 @@
-<header class="app-header">
-  <h1><i class="fa-solid fa-dice"></i> Casino Battle</h1>
-  <p>Cliente Angular — conecta al servidor Colyseus en <code>localhost:2567</code></p>
-</header>
+<main class="screen" [class.is-game]="conn.inGame()">
+  @if (!conn.inGame()) {
+    <section class="landing">
+      <div class="hero-copy">
+        <p class="eyebrow"><i class="fa-solid fa-crown"></i> Wheels Arena</p>
+        <h1>Casino Battle</h1>
+        <p>
+          Crea un lobby, elige dos héroes y entra a una mesa de combate sincronizada
+          con Colyseus.
+        </p>
+      </div>
 
-<main class="layout">
-  <aside class="sidebar">
-    <app-lobby-panel />
+      <div class="lobby-board">
+        <app-lobby-panel />
+      </div>
 
-    <section class="panel glossary">
-      <h2><i class="fa-solid fa-book"></i> Glosario</h2>
-      <ul>
-        @for (entry of symbols; track entry[0]) {
-          <li>
-            <i [class]="entry[1].icon" [style.color]="entry[1].color"></i>
-            <div>
-              <strong>{{ entry[1].label }}</strong>
-              <small><code>{{ entry[0] }}</code></small>
-              <p>{{ entry[1].effect }}</p>
-            </div>
-          </li>
-        }
-      </ul>
+      <section class="glossary">
+        <h2><i class="fa-solid fa-book"></i> Símbolos</h2>
+        <ul>
+          @for (entry of symbols; track entry[0]) {
+            <li>
+              <i [class]="entry[1].icon" [style.color]="entry[1].color"></i>
+              <div>
+                <strong>{{ entry[1].label }}</strong>
+                <small><code>{{ entry[0] }}</code></small>
+                <p>{{ entry[1].effect }}</p>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
     </section>
-  </aside>
-
-  <section class="main">
-    <app-game-panel />
-    <app-game-log />
-  </section>
+  } @else {
+    <section class="game-screen">
+      <app-game-panel />
+    </section>
+  }
 </main>

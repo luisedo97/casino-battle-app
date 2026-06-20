@@ -1,35 +1,41 @@
-@if (wheels().length) {
-  <div class="meta">
-    <p-tag [value]="'Fase: ' + phaseLabel()" severity="info" />
-    <p-tag [value]="'Giros: ' + (playerView()?.turn?.spinsRemaining ?? 0)" />
-  </div>
+@if (displayWheels().length) {
+  @if (!compact()) {
+    <div class="meta">
+      <p-tag [value]="'Fase: ' + phaseLabel()" severity="info" />
+      <p-tag [value]="'Giros: ' + (spinsRemaining() ?? 0)" />
+    </div>
+  }
 
-  <div class="grid">
-    @for (wheel of wheels(); track $index + wheel.symbol + wheel.locked) {
-      @let meta = symbolMeta(wheel.symbol);
-      <article class="wheel-card" [class.locked]="wheel.locked">
-        <div class="wheel-title">Rueda {{ $index + 1 }}</div>
+  <div class="grid" [class.compact]="compact()" [class.inverted]="inverted()">
+    @for (wheel of displayWheels(); track $index + wheel.symbol + wheel.locked) {
+      @let meta = symbolMeta(wheel.displaySymbol);
+      <article
+        class="wheel-card"
+        [class.locked]="wheel.locked"
+        [class.spinning]="wheel.spinning"
+        [class.read-only]="!interactive()"
+      >
+        <div class="wheel-title">R{{ $index + 1 }}</div>
         <div class="wheel-symbol" [style.color]="meta.color">
           <i [class]="meta.icon"></i>
         </div>
-        <div class="wheel-label">{{ meta.label }}</div>
-        <code>{{ wheel.symbol }}</code>
-        <p-button
-          [label]="wheel.locked ? 'Desbloquear' : 'Bloquear'"
-          [icon]="wheel.locked ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'"
-          size="small"
-          [severity]="wheel.locked ? 'warn' : 'secondary'"
-          (onClick)="toggleLock($index, wheel.locked)"
-        />
+        @if (!compact()) {
+          <div class="wheel-label">{{ meta.label }}</div>
+        }
+        @if (interactive()) {
+          <p-button
+            [label]="wheel.locked ? 'Abrir' : 'Fijar'"
+            [icon]="wheel.locked ? 'fa-solid fa-lock-open' : 'fa-solid fa-lock'"
+            size="small"
+            [severity]="wheel.locked ? 'warn' : 'secondary'"
+            (onClick)="toggleLock($index, wheel.locked)"
+          />
+        } @else if (wheel.locked) {
+          <span class="lock-badge"><i class="fa-solid fa-lock"></i></span>
+        }
       </article>
     }
   </div>
 } @else {
-  <p class="muted">
-    @if (conn.myPlayerId()) {
-      Esperando inicio de turno…
-    } @else {
-      Esperando asignación de jugador…
-    }
-  </p>
+  <p class="muted">Esperando ruedas…</p>
 }

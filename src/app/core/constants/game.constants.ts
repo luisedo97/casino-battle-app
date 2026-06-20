@@ -48,14 +48,14 @@ export const SYMBOL_GLOSSARY = {
   },
   panel_left: {
     icon: 'fa-solid fa-book-open',
-    color: '#79c0ff',
-    label: 'Panel azul (izquierda)',
+    color: '#f0c040',
+    label: 'Panel (izquierda)',
     effect: 'Energía (con amarillos) y +1 XP por panel',
   },
   panel_right: {
     icon: 'fa-solid fa-book-open',
-    color: '#a371f7',
-    label: 'Panel azul (derecha)',
+    color: '#58a6ff',
+    label: 'Panel (derecha)',
     effect: 'Energía (con azules) y +1 XP por panel',
   },
 } as const;

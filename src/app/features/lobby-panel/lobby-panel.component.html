@@ -1,19 +1,30 @@
-<section class="panel">
-  <h2><i class="fa-solid fa-plug"></i> Conexión</h2>
+<section class="lobby-panel">
+  <div class="panel-heading">
+    <span class="seal"><i class="fa-solid fa-dice-d20"></i></span>
+    <div>
+      <h2>Buscar o crear lobby</h2>
+      <p>Esta vista es solo para preparar la partida.</p>
+    </div>
+  </div>
 
   @if (conn.connected()) {
-    <p class="status ok">
-      Conectado a <strong>{{ conn.roomName() }}</strong><br />
-      Room: <code>{{ conn.roomId() }}</code><br />
-      Session: <code>{{ conn.sessionId() }}</code>
-    </p>
-    <p-button label="Salir de la sala" severity="secondary" (onClick)="leave()" />
+    <div class="connection-card">
+      <strong>Conectado a {{ conn.roomName() }}</strong>
+      <span>Room <code>{{ conn.roomId() }}</code></span>
+      <span>Session <code>{{ conn.sessionId() }}</code></span>
+      <p-button label="Salir" icon="fa-solid fa-door-open" severity="secondary" (onClick)="leave()" />
+    </div>
   } @else {
-    <label for="playerName">Nombre (opcional)</label>
-    <input pInputText id="playerName" [(ngModel)]="playerName" placeholder="Tu nombre" />
-
-    <label for="roomId">Room ID</label>
-    <input pInputText id="roomId" [(ngModel)]="roomIdInput" placeholder="Pega un roomId" />
+    <div class="field-grid">
+      <div>
+        <label for="playerName">Nombre</label>
+        <input pInputText id="playerName" [(ngModel)]="playerName" placeholder="Tu nombre" />
+      </div>
+      <div>
+        <label for="roomId">Room ID</label>
+        <input pInputText id="roomId" [(ngModel)]="roomIdInput" placeholder="Pega un roomId" />
+      </div>
+    </div>
 
     <div class="actions">
       <p-button label="Crear lobby" icon="fa-solid fa-plus" (onClick)="createRoom()" [loading]="loading()" />
@@ -30,7 +41,8 @@
     <ul class="room-list">
       @for (room of rooms(); track room.roomId) {
         <li>
-          <span>{{ room.roomId }} ({{ room.clients }}/{{ room.maxClients }})</span>
+          <span><i class="fa-solid fa-tower-observation"></i> {{ room.roomId }}</span>
+          <small>{{ room.clients }}/{{ room.maxClients }} jugadores</small>
           <p-button label="Usar" size="small" (onClick)="selectRoom(room.roomId)" />
         </li>
       }
@@ -39,8 +51,14 @@
 </section>
 
 @if (conn.inLobby()) {
-  <section class="panel">
-    <h2><i class="fa-solid fa-users"></i> Lobby</h2>
+  <section class="lobby-panel hero-pick">
+    <div class="panel-heading">
+      <span class="seal"><i class="fa-solid fa-shield-halved"></i></span>
+      <div>
+        <h2>Escuadrón</h2>
+        <p>Elige dos héroes y marca ready.</p>
+      </div>
+    </div>
 
     <div class="hero-select">
       <div>
@@ -61,16 +79,22 @@
     <ul class="players">
       @for (entry of conn.playersView(); track entry.key) {
         <li>
-          <strong>{{ entry.player.name }}</strong>
-          @if (entry.key === conn.myPlayerId()) {
-            <p-tag value="TÚ" severity="info" />
-          }
-          @if (entry.player.selectedHeroes?.length) {
-            <span class="muted">{{ entry.player.selectedHeroes?.join(' / ') }}</span>
-          }
-          @if (entry.player.isReady) {
-            <p-tag value="Ready" severity="success" />
-          }
+          <div>
+            <strong>{{ entry.player.name }}</strong>
+            @if (entry.player.selectedHeroes?.length) {
+              <span>{{ entry.player.selectedHeroes?.join(' / ') }}</span>
+            }
+          </div>
+          <div class="tags">
+            @if (entry.key === conn.myPlayerId()) {
+              <p-tag value="TÚ" severity="info" />
+            }
+            @if (entry.player.isReady) {
+              <p-tag value="Ready" severity="success" />
+            } @else {
+              <p-tag value="Preparando" severity="warn" />
+            }
+          </div>
         </li>
       }
     </ul>
